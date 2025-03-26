@@ -16,7 +16,11 @@ pipeline {
   stages {
     stage('Clean Workspace') {
       steps {
-        deleteDir()
+        script {
+          // Remove Jenkins workspace completely to avoid permission issues
+          sh 'echo "Cleaning workspace..."'
+          sh 'rm -rf *'
+        }
       }
     }
 
@@ -31,6 +35,7 @@ pipeline {
         sh '''
           cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
           mvn clean package
+          chown -R jenkins:jenkins target || true
         '''
       }
     }
@@ -65,7 +70,7 @@ pipeline {
     }
 
     stage('Update Deployment File') {
-      agent any // run this on Jenkins host to access .git
+      agent any
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
           sh '''
