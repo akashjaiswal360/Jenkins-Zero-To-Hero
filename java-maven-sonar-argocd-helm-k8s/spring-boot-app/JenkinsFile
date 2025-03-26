@@ -15,8 +15,8 @@ pipeline {
           userRemoteConfigs: [[url: 'https://github.com/akashjaiswal360/Jenkins-Zero-To-Hero.git']],
           extensions: [[$class: 'CloneOption', noTags: false, shallow: false, depth: 0]]
         ])
-        sh 'ls -la'
-        sh 'find . -name .git'
+        // Debug: List contents and check for .git
+        sh 'echo "Workspace root:" && ls -la && find . -name .git'
       }
     }
 
@@ -32,7 +32,7 @@ pipeline {
       }
       steps {
         withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-          sh 'cd java-maven-sonar-argocd-helm-k8s/spring-boot-app && mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}'
+          sh 'cd java-maven-sonar-argocd-helm-k8s/spring-boot-app && mvn sonar:sonar -Dsonar.token=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}'
         }
       }
     }
@@ -60,6 +60,8 @@ pipeline {
       }
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+          // Ensure we're at the workspace root
+          sh 'echo "Update Deployment File stage - current directory:" && pwd && ls -la'
           sh '''
             git config user.email "akkijais00@gmail.com"
             git config user.name "Akash Jaiswal"
