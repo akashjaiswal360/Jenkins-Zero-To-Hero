@@ -14,28 +14,11 @@ pipeline {
   }
 
   stages {
-    stage('Clean Workspace') {
-      steps {
-        script {
-          // Remove Jenkins workspace completely to avoid permission issues
-          sh 'echo "Cleaning workspace..."'
-          sh 'rm -rf *'
-        }
-      }
-    }
-
-    stage('Checkout') {
-      steps {
-        checkout scm
-      }
-    }
-
     stage('Build and Test') {
       steps {
         sh '''
           cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
           mvn clean package
-          chown -R jenkins:jenkins target || true
         '''
       }
     }
@@ -69,8 +52,9 @@ pipeline {
       }
     }
 
+    // ❌ This stage was still inside the Docker container,
+    // so it didn't have access to the .git folder
     stage('Update Deployment File') {
-      agent any
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
           sh '''
@@ -79,8 +63,7 @@ pipeline {
             sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
             git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
             git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "Nothing to commit"
-            git remote set-url origin https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git
-            git push origin HEAD:main || echo "Nothing to push"
+            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main || echo "Nothing to push"
           '''
         }
       }
@@ -89,9 +72,7 @@ pipeline {
 
   post {
     always {
-      script {
-        cleanWs()
-      }
+      cleanWs()
     }
   }
 }
