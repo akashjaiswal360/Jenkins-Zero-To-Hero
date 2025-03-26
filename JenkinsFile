@@ -53,10 +53,10 @@ pipeline {
     }
 
     stage('Update Deployment File') {
-      agent any  // <-- Switch to Jenkins host so .git works
+      agent any  // Runs this stage outside the Docker agent, using Jenkins host
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-          sh '''
+          sh(label: 'Update and Push K8s Manifest', script: '''#!/bin/bash
             git config user.email "akkijais00@gmail.com"
             git config user.name "Akash Jaiswal"
             sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
@@ -64,7 +64,7 @@ pipeline {
             git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "Nothing to commit"
             git remote set-url origin https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git
             git push origin HEAD:main || echo "Nothing to push"
-          '''
+          ''')
         }
       }
     }
