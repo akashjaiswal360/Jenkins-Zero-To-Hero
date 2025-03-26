@@ -15,7 +15,7 @@ pipeline {
           userRemoteConfigs: [[url: 'https://github.com/akashjaiswal360/Jenkins-Zero-To-Hero.git']],
           extensions: [[$class: 'CloneOption', noTags: false, shallow: false, depth: 0]]
         ])
-        // Debug: Verify .git exists
+        // Debug: Verify .git exists in the workspace root
         sh 'echo "Workspace root:" && pwd && ls -la && find . -name .git'
       }
     }
@@ -32,7 +32,7 @@ pipeline {
       }
       steps {
         withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-          // Using sonar.token instead of sonar.login is recommended:
+          // Note: Using sonar.token instead of sonar.login is recommended.
           sh 'cd java-maven-sonar-argocd-helm-k8s/spring-boot-app && mvn sonar:sonar -Dsonar.token=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}'
         }
       }
@@ -62,16 +62,14 @@ pipeline {
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
           sh '''
-            cd $WORKSPACE
-            echo "Current directory: $(pwd)"
-            ls -la
-            git config user.email "akkijais00@gmail.com"
-            git config user.name "Akash Jaiswal"
+            # Ensure we're at the workspace root using the -C option
+            git -C ${WORKSPACE} config user.email "akkijais00@gmail.com"
+            git -C ${WORKSPACE} config user.name "Akash Jaiswal"
             sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
-            git add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
-            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "Nothing to commit"
-            git remote set-url origin https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git
-            git push origin HEAD:main || echo "Nothing to push"
+            git -C ${WORKSPACE} add java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
+            git -C ${WORKSPACE} commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "Nothing to commit"
+            git -C ${WORKSPACE} remote set-url origin https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git
+            git -C ${WORKSPACE} push origin HEAD:main || echo "Nothing to push"
           '''
         }
       }
