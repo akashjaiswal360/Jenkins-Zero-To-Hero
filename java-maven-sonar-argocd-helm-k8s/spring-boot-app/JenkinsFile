@@ -4,11 +4,17 @@ pipeline {
       image 'akash3601/maven-akash-docker-agent:v1'
       args '--user root -v /var/run/docker.sock:/var/run/docker.sock' // mount Docker socket to access the host's Docker daemon
     }
+  agent {
+    docker {
+      image 'docker:20.10.24-dind' // or your custom Docker-in-Docker image
+      args '--privileged -v /var/run/docker.sock:/var/run/docker.sock'
+    }
   }
   stages {
     stage('Checkout') {
       steps {
-        sh 'echo passed'
+        checkout scm
+        //sh 'echo passed'
         //git branch: 'main', url: 'https://github.com/iam-veeramalla/Jenkins-Zero-To-Hero.git'
       }
     }
