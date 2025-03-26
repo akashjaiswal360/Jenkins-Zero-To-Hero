@@ -9,14 +9,21 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
+        // Force a full clone (no shallow checkout)
         checkout([
           $class: 'GitSCM',
           branches: [[name: '*/main']],
           userRemoteConfigs: [[url: 'https://github.com/akashjaiswal360/Jenkins-Zero-To-Hero.git']],
           extensions: [[$class: 'CloneOption', noTags: false, shallow: false, depth: 0]]
         ])
+
         // Debug: Verify .git exists in the workspace root
-        sh 'echo "Workspace root:" && pwd && ls -la && find . -name .git'
+        sh '''
+          echo "DEBUG: After checkout"
+          pwd
+          ls -la
+          find . -name .git
+        '''
       }
     }
 
@@ -32,8 +39,11 @@ pipeline {
       }
       steps {
         withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-          // Note: Using sonar.token instead of sonar.login is recommended.
-          sh 'cd java-maven-sonar-argocd-helm-k8s/spring-boot-app && mvn sonar:sonar -Dsonar.token=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}'
+          // Use -Dsonar.token instead of deprecated -Dsonar.login
+          sh '''
+            cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
+            mvn sonar:sonar -Dsonar.token=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}
+          '''
         }
       }
     }
@@ -45,7 +55,13 @@ pipeline {
       }
       steps {
         script {
-          sh 'cd java-maven-sonar-argocd-helm-k8s/spring-boot-app && docker build -t ${DOCKER_IMAGE} .'
+          // Build the Docker image in the correct subfolder
+          sh '''
+            cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
+            docker build -t ${DOCKER_IMAGE} .
+          '''
+
+          // Push the Docker image to Docker Hub
           def dockerImage = docker.image("${DOCKER_IMAGE}")
           docker.withRegistry('https://index.docker.io/v1/', "docker-cred") {
             dockerImage.push()
@@ -61,8 +77,8 @@ pipeline {
       }
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+          // Run all Git commands from the workspace root with -C
           sh '''
-            # Ensure we're at the workspace root using the -C option
             git -C ${WORKSPACE} config user.email "akkijais00@gmail.com"
             git -C ${WORKSPACE} config user.name "Akash Jaiswal"
             sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" java-maven-sonar-argocd-helm-k8s/spring-boot-app-manifests/deployment.yml
