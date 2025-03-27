@@ -2,29 +2,27 @@ pipeline {
   agent {
     docker {
       image 'akash3601/maven-akash-docker-agent:v1'
-      // Mount Docker socket; ensure container runs as root so workspace (including hidden files) is accessible
+      // Mount the Docker socket; running as root ensures the workspace (including hidden files) is accessible
       args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
     }
   }
-
   stages {
     stage('Checkout') {
       steps {
-        // Force a full checkout of the repository to ensure .git is present
+        // Explicitly perform a full checkout so the entire repository (including .git) is present
         checkout([
           $class: 'GitSCM',
           branches: [[name: '*/main']],
           userRemoteConfigs: [[ url: 'https://github.com/akashjaiswal360/Jenkins-Zero-To-Hero.git' ]]
         ])
-        // Debugging: List workspace contents to confirm .git is present
-        echo "Full checkout complete. Workspace contents:"
+        echo "Repository checked out successfully. Workspace contents:"
         sh 'ls -la'
       }
     }
 
     stage('Build and Test') {
       steps {
-        // Build the Maven project by referencing the pom.xml without changing directories.
+        // Build Maven project using the -f flag to reference the pom.xml without changing directories
         sh 'mvn clean package -f java-maven-sonar-argocd-helm-k8s/spring-boot-app/pom.xml'
       }
     }
@@ -52,7 +50,7 @@ pipeline {
       }
       steps {
         script {
-          // Build Docker image using the spring-boot-app directory as context
+          // Build Docker image using the spring-boot-app directory as the build context
           sh 'docker build -t ${DOCKER_IMAGE} java-maven-sonar-argocd-helm-k8s/spring-boot-app'
           def dockerImage = docker.image("${DOCKER_IMAGE}")
           docker.withRegistry('https://index.docker.io/v1/', "docker-cred") {
@@ -69,16 +67,15 @@ pipeline {
       }
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-          // Ensure we run Git commands from the workspace root where .git exists.
+          // Ensure we run in the workspace root where .git is present
           dir("${env.WORKSPACE}") {
-            // Debugging: Print current directory, list files, and show git status
-            sh '''
-              echo "Current directory: $(pwd)"
-              echo "Workspace contents:"
-              ls -la
-              git status
-            '''
-            // Configure Git user and update deployment file
+            // Debugging: verify we're in the correct directory and .git exists
+            echo "Current directory: $(pwd)"
+            echo "Workspace contents:"
+            sh 'ls -la'
+            sh 'git status'
+
+            // Now perform the Git operations
             sh '''
               git config user.email "akkijais00@gmail.com"
               git config user.name "Akash Jaiswal"
