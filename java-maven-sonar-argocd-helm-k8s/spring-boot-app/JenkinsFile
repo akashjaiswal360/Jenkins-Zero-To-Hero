@@ -2,27 +2,25 @@ pipeline {
   agent {
     docker {
       image 'akash3601/maven-akash-docker-agent:v1'
-      // Mount the Docker socket; running as root ensures the workspace (including hidden files) is accessible
       args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
     }
   }
+
   stages {
     stage('Checkout') {
       steps {
-        // Explicitly perform a full checkout so the entire repository (including .git) is present
         checkout([
           $class: 'GitSCM',
           branches: [[name: '*/main']],
           userRemoteConfigs: [[ url: 'https://github.com/akashjaiswal360/Jenkins-Zero-To-Hero.git' ]]
         ])
-        // Debug: List workspace contents to confirm .git is present
+        echo "Repository checked out successfully. Workspace contents:"
         sh 'ls -la'
       }
     }
 
     stage('Build and Test') {
       steps {
-        // Build Maven project using the -f flag to reference the pom.xml without changing directories
         sh 'mvn clean package -f java-maven-sonar-argocd-helm-k8s/spring-boot-app/pom.xml'
       }
     }
@@ -50,7 +48,6 @@ pipeline {
       }
       steps {
         script {
-          // Build Docker image using the spring-boot-app directory as the build context
           sh 'docker build -t ${DOCKER_IMAGE} java-maven-sonar-argocd-helm-k8s/spring-boot-app'
           def dockerImage = docker.image("${DOCKER_IMAGE}")
           docker.withRegistry('https://index.docker.io/v1/', "docker-cred") {
@@ -67,15 +64,16 @@ pipeline {
       }
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-          // Ensure we run Git commands from the workspace root where .git exists.
           dir("${env.WORKSPACE}") {
-            // Debugging: Print current directory, list files, and show git status
+            // Mark the directory as safe to avoid "dubious ownership" error
+            sh 'git config --global --add safe.directory /var/lib/jenkins/workspace/ultimate-demo'
+            // Debugging: confirm we're in the correct directory and .git is visible
             sh 'echo "Current directory: $(pwd)"'
             sh 'echo "Workspace contents:"'
             sh 'ls -la'
             sh 'git status'
 
-            // Now perform the Git operations
+            // Perform Git operations
             sh '''
               git config user.email "akkijais00@gmail.com"
               git config user.name "Akash Jaiswal"
