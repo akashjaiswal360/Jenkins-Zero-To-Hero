@@ -15,7 +15,7 @@ pipeline {
           branches: [[name: '*/main']],
           userRemoteConfigs: [[ url: 'https://github.com/akashjaiswal360/Jenkins-Zero-To-Hero.git' ]]
         ])
-        echo "Repository checked out successfully. Workspace contents:"
+        // Debug: List workspace contents to confirm .git is present
         sh 'ls -la'
       }
     }
@@ -67,11 +67,11 @@ pipeline {
       }
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-          // Ensure we run in the workspace root where .git is present
+          // Ensure we run Git commands from the workspace root where .git exists.
           dir("${env.WORKSPACE}") {
-            // Debugging: verify we're in the correct directory and .git exists
-            echo "Current directory: $(pwd)"
-            echo "Workspace contents:"
+            // Debugging: Print current directory, list files, and show git status
+            sh 'echo "Current directory: $(pwd)"'
+            sh 'echo "Workspace contents:"'
             sh 'ls -la'
             sh 'git status'
 
